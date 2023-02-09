@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch the fruit</title>
+    <style>
+       @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville&display=swap');
+        body {
+            background-color: #98d69b;
+            background-image: linear-gradient(250deg, #15a14b 0%, #98f390 74%);
+            color: #012906;
+            text-align: center;
+        }
+        
+        h1{
+            font-family: 'Libre Baskerville', serif;
+            font-size: 3rem;
+        }
+
+        #info{
+            display: inline-block;
+            font-family: 'Tahoma', sans-serif;
+            padding: 3rem;
+        }
+
+        #game{
+            float: right;
+        }
+
+        #garden {
+            margin: 20px auto;
+            background: #fff;
+        }
+
+        #counts {
+            font-size: 40px;
+        }
+
+        #newgame {
+            width: 250px;
+            margin: 20px auto;
+            background: #ffc8c8;;
+            display: block;
+            border: 2px solid #000;
+            border-radius: 5px;
+            color: #000;
+            font-size: 2rem;
+            display: none;
+        }
+
+        #newgame:hover {
+            background: #000;
+            color: #ffc8c8;
+            cursor: pointer;
+        }
+
+        #gameOn {
+            width: 250px;
+            margin: 20px auto;
+            background: #ffc8c8;;
+            display: block;
+            border: 2px solid #000;
+            border-radius: 5px;
+            color: #000;
+            font-size: 2rem;
+            display: none;
+        }
+
+        #gameOn:hover {
+            background: #000;
+            color: #ffc8c8;
+        }
+
+        #box {
+            display: flex;
+            justify-content: center;
+        }
+
+    </style>
+</head>
+<body>
+    <div id = "box">
+        <section id="info">
+            <h1>Catch The Fruit!</h1>
+            <p>Catch as many fruits as you can in three minutes!</p>
+            <p>Stay away from the rotten fruits, but the seeds gives you extra lives</p>
+            <div id="counts">POINTS: <span id="points-count"></span></div>
+            <div id="counts">LIVES: <span id="lives-count"></span></div>
+            <div id="counts">TIME LEFT: <span id="time-count"></span></div>
+            <!--Start spill knapp-->
+            <button id="gameOn" onclick="startGame()">Start</button>
+            <!--Restartknapp-->
+            <button id="newgame" onclick="startGame()">Restart game</button>
+        </section>
+
+        <section id="game">
+            <canvas id="garden"></canvas>
+        </section>
+    </div>
+
+    <script>
+        //Deklarerer en variabel for canvas
+        var canvas = document.getElementById("garden");
+        //Canvas størrelse
+        canvas.width = 749;
+        canvas.height = 649;
+        //Henter render info om 2D spill, for å kunne bruke canvas
+        var ctx = canvas.getContext("2d");
+
+        //Henter egendefinert bakgrunnsbilde
+        var backgroundLoaded = false;
+        var background = new Image();
+        background.onload = function() {
+        backgroundLoaded = true;
+        }
+        background.src = "images/background.jpg";
+
+        //Henter egendefinert bilde av kurv
+        var basketLoaded = false;
+        var basketImage = new Image();
+        basketImage.onload = function() {
+            basketLoaded = true;
+        }
+        basketImage.src = "images/basket.png";
+
+        //Henter egendefinert bilde av banan
+        var bananaLoaded = false;
+        var bananaImage = new Image();
+        bananaImage.onload = function() {
+            bananaLoaded = true;
+        }
+        bananaImage.src = "images/banana.png";
+
+        //Henter egendefinert bilde av eple
+        var appleLoaded = false;
+        var appleImage = new Image();
+        appleImage.onload = function() {
+            appleLoaded = true;
+        }
+        appleImage.src = "images/apple.png";
+
+        //Henter egendefinert bilde av frø
+        var seedLoaded = false;
+        var seedImage = new Image();
+        seedImage.onload = function() {
+            seedLoaded = true;
+        }
+        seedImage.src = "images/seed.png";
+
+        //Henter egendefinert bilde av råtten frukt
+        var rottenLoaded = false;
+        var rottenImage = new Image();
+        rottenImage.onload = function() {
+            rottenLoaded = true;
+        }
+        rottenImage.src = "images/rotten.png";
+
+        //Henter egendefinert bilde råtten frukt nr 2
+        var rotten2Loaded = false;
+        var rotten2Image = new Image();
+        rotten2Image.onload = function() {
+            rotten2Loaded = true;
+        }
+        rotten2Image.src = "images/rotten.png";
+
+        //Deklarerer variabler og gjør klar info om knapper, tekst og tellere og setter fart på frukt og kurv
+        var basket = {speed: 256};
+        var banana = {speed: 85};
+        var apple = {speed: 55};
+        var seed = {speed: 50};
+        var rotten = {speed: 60};
+        var rotten2 = {speed: 80};
+        var pointsCount = 0;
+        var livesCount = 3;
+        var gameOver = false;
+        var gameStart = false;
+        var count = 180;
+
+        //Lager funksjon som plasserer spillelementene på canvas
+        //Kurv i midten på bunnen.
+        function drawbasket(){
+            basket.x = canvas.width / 2;
+            basket.y = canvas.height - 44;
+        }
+
+        //Banan som faller randomisert fra toppen av canvas
+        function drawbanana(){
+            banana.x = 18 + (Math.random() * (canvas.width - 40));
+            banana.y = 1;  
+        }
+
+        //Eple som faller randomisert fra toppen av canvas
+        function drawapple(){                
+            apple.x = 18 + (Math.random() * (canvas.width - 40));
+            apple.y = 1;
+        }
+
+        //Frø som faller randomisert fra toppen av canvas, med litt tid mellom
+        //Plassert et stykke over canvas (y) for å simulere at det tar litt tid mellom hver gang den faller.
+        function drawseed(){         
+            seed.x = 18 + (Math.random() * (canvas.width - 40));
+            seed.y = -500; 
+        }
+
+        //Råtten frukt som faller randomisert fra toppen av canvas
+        //Plassert et stykke over canvas (y) for å simulere at det tar litt tid mellom hver gang den faller.
+        function drawrotten(){
+            rotten.x = 18 + (Math.random() * (canvas.width - 40));
+            rotten.y = -80;
+        }
+
+        //Råtten frukt nr 2 som faller randomisert fra toppen av canvas
+        //Plassert et stykke over canvas (y) for å simulere at det tar litt tid mellom hver gang den faller.
+        function drawrotten2(){
+            rotten2.x = 18 + (Math.random() * (canvas.width - 40));
+            rotten2.y = -100;
+        }
+        
+
+        //Sjekker om spilleren har trykket ned (og holder) en tast:
+        document.addEventListener('keydown', buttonPressed);
+        document.addEventListener('keyup', buttonReleased);
+
+        //Deklarerer variabler for piltaster
+        //Funksjon for å sjekke hvilken tast som er trykket
+        var buttonLeft, buttonRight = false;
+        function buttonPressed(e) {
+            //Venstre:
+            if(e.keyCode == 37) {
+                buttonLeft = true;
+            }
+
+            //Høyre:
+            if(e.keyCode == 39) {
+                buttonRight = true;
+            }
+        }
+
+        //Funksjon for å sjekke hvilken tast som er slupper opp
+        function buttonReleased(e) {
+            //Venstre:
+            if(e.keyCode == 37) {
+                buttonLeft = false;
+            }
+
+            //Høyre:
+            if(e.keyCode == 39) {
+                buttonRight = false;
+            }
+        }
+
+        //Animate-funksjon som inneholder alt som skjer når spillet er aktivt
+        //Modifier settes for å forenkle fartsjustering på alle spillelementer
+        //(Justering for hver enkelt skjer oppe i variablene og  lengere ned, i funksjon gameRenderer)
+        function animate(modifier) {
+            //Sjekke om bananen treffer bakken
+            if(banana.y >= canvas.height - 36) {
+                //Hvis bananen treffer bakken: trekk fra et liv
+                livesCount -= 1; 
+                //og tegn bananen på nytt.
+                drawbanana();
+            } else{
+                //ellers: skal bananen fortsette nedover canvas
+                banana.y += banana.speed * modifier;
+            }
+
+            //Sjekke om eplet treffer bakken
+            if(apple.y >= canvas.height - 36) {
+                //Trekk fra et liv
+                livesCount-=1;
+                //Tegn eplet på nytt
+                drawapple();
+            } else{
+                apple.y += apple.speed * modifier;
+            }
+            
+            if(seed.y >= canvas.height - 36) {
+                //Trekk fra et liv
+                livesCount-=1;
+                //Tegn eplet på nytt
+                drawseed();
+            }else{
+                seed.y += seed.speed * modifier; 
+            }
+
+            //Hvis råtten frukt treffer bakken, tegnes den kun opp på nytt.
+            if(rotten.y >= canvas.height - 36) {
+                drawrotten();
+            }else{
+                rotten.y += rotten.speed * modifier;
+            }
+
+            if(rotten2.y >= canvas.height - 36) {
+                drawrotten2();
+            }else{
+                rotten2.y += rotten2.speed * modifier;
+            }
+
+            
+            //Flytte kurven og forhindre at den kan bevege seg utenfor canvas
+            //Venstre
+            if(buttonLeft == true) {
+                if(basket.x <= 0) {
+                    basket.x = 0;
+                } else {
+                    basket.x -= basket.speed * modifier;
+                }
+            }
+
+            //Høyre
+            if(buttonRight == true) {
+                if(basket.x >= canvas.width - 72) {
+                    basket.x = canvas.width - 72;
+                } else {
+                    basket.x += basket.speed * modifier; 
+                }
+            }
+
+            //Kollisjonsdeteksjon kurv + banan
+            if(
+                basket.x <= (banana.x + 30) &&
+                basket.y <= (banana.y + 30) && 
+                banana.x <= (basket.x + 70)
+            ) {
+                //Plusser på 10 på pointsCount når bananen treffer kurven
+                pointsCount+=10;
+                //Tegner opp bananen på nytt
+                drawbanana();
+            }
+ 
+            //Kollisjonsdeteksjon kurv + eple
+            if(
+                basket.x <= (apple.x + 30) &&
+                basket.y <= (apple.y + 30) && 
+                apple.x <= (basket.x + 70)
+            ){
+                //Plusser på 5 på pointsCount når eplet treffer kurven
+                pointsCount+=5;
+                //Tegner opp eplet på nytt
+                drawapple();
+            }
+            
+            //Kollisjonsdeteksjon kurv + frø
+            if(
+                basket.x <= (seed.x + 30) &&
+                basket.y <= (seed.y + 30) && 
+                seed.x <= (basket.x + 70)
+            ){
+                //Plusser på 1 på livesCount når frøet treffer kurven
+                livesCount+=1;
+                //Tegner opp frøet på nytt
+                drawseed();
+            }
+
+            //Kollisjonsdeteksjon kurv + råtten frukt
+            if(
+                basket.x <= (rotten.x + 30) &&
+                basket.y <= (rotten.y + 30) && 
+                rotten.x <= (basket.x + 70)
+            ){
+                //trekker fra 1 liv hvis råtten frukt treffer kurven
+                livesCount-=1;
+                //Tegner opp råtten frukt på nytt
+                drawrotten();
+            }
+
+            //Kollisjonsdeteksjon kurv + råtten frukt nr 2
+            if(
+                basket.x <= (rotten2.x + 30) &&
+                basket.y <= (rotten2.y + 30) && 
+                rotten2.x <= (basket.x + 70)
+            ){
+                //trekker fra 1 liv hvis råtten frukt nr 2 treffer kurven
+                livesCount-=1;
+                //Tegner opp råtten frukt nr 2 på nytt
+                drawrotten2();
+            }
+            
+        }
+
+        //Tegner opp karakterer på canvas når funksjonen blir kjørt
+        function renderGame() {
+            //Vis alle egendefinerte bilder
+            //Bakgrunn
+            if(backgroundLoaded === true) {
+                ctx.drawImage(background, 0, 0);
+            }
+            //Kurv
+            if(basketLoaded === true) {
+                ctx.drawImage(basketImage, basket.x, basket.y);
+            }
+            //Banan
+            if(bananaLoaded === true) {
+                ctx.drawImage(bananaImage, banana.x, banana.y);
+            }
+            //eple
+            if(appleLoaded === true) {
+                ctx.drawImage(appleImage, apple.x, apple.y);
+            }
+            //frø
+            if(seedLoaded === true) {
+                ctx.drawImage(seedImage, seed.x, seed.y);
+            }
+            //Råtten frukt
+            if(rottenLoaded === true) {
+                ctx.drawImage(rottenImage, rotten.x, rotten.y);
+            }
+            //Råtten frukt nr 2
+            if(rotten2Loaded === true) {
+                ctx.drawImage(rotten2Image, rotten2.x, rotten2.y);
+            }
+
+
+            //Viser tid, poeng og antall liv ved siden av canvas, hentet fra html.
+            document.getElementById("time-count").innerHTML = count;
+            document.getElementById("points-count").innerHTML = pointsCount;
+            document.getElementById("lives-count").innerHTML = livesCount;
+            
+
+
+            //Viser tekst og restart knapp når gameOver er true.
+            if(gameOver == true){
+                //Kjører alt som skjer i lost funksjon.
+                lost();
+                //Font og størrelse på tekst i canvas
+                ctx.font = "90px Libre Baskerville";
+                ctx.fillStyle = "rgb(255, 200, 200)";
+                //Plassering av tekst i canvas
+                ctx.fillText("Game over!", canvas.width / 6, canvas.height / 2);
+                //Viser restart game knapp
+                document.getElementById("newgame").style.display = "block";
+            } else {
+                //Knapp ikke synlig hvis ikke gameOver = true.
+                document.getElementById("newgame").style.display = "none";
+            }
+        
+
+            //Viser tekst og start-knapp for å starte spillet når gameStart er true.
+            if(gameStart == true){
+                //Kjører funskjonen som angir alt slik det skal være før spillet starter.
+                beforeStart();
+                //Stopper tidstelleren
+                clearInterval(counter);
+                //Font og størrelse på tekst i canvas
+                ctx.font = "90px Libre Baskerville";
+                ctx.fillStyle = "rgb(255, 200, 200)";
+                //Plassering av tekst i canvas
+                ctx.fillText("Good luck!", canvas.width / 6, canvas.height / 2);
+                //Viser start-knapp
+                document.getElementById("gameOn").style.display = "block";
+            } else {
+                //Knapp ikke synlig hvis ikke gameStart = true.
+                document.getElementById("gameOn").style.display = "none";
+                }
+        }
+
+        //Funskjon for game-over
+        function lost(){
+                //Kjører alt i if-testen for gameOver
+                gameOver = true;
+                //Stopper tidstelleren
+                clearInterval(counter);
+                //Stopper telling av liv
+                clearInterval(countlives);
+                //Skjuler alle spillelementer.
+                basketLoaded = false;
+                banana = {};
+                apple = {};
+                seed = {};
+                rotten = {};
+                rotten2 = {};
+            }
+
+        //Hovedfunksjon med repetisjon av alle spill-deler (requestAnimationFrame):
+        function gameRenderer() {
+            //Bestemmer hvor fort spillelementene skal bevege seg.
+            animate(0.04);
+            //Kjører alt i funksjonen renderGame
+            renderGame();
+            //Kjører cross-browser support for requestAnimationFrame (Farten baseres på nettleser og skjermhastighet)
+            requestAnimationFrame(gameRenderer);
+        }
+
+     
+        //Funksjon for nedtelling
+        function counter() {
+            //Teller ned.
+            count--;
+            //Hva som skjer når nedtelling når null
+            if(count <= 0) {
+                count = 0;
+                //Kjører funksjonen for tap/game-over.
+                lost();
+            }
+
+            //Råtten frukt faller dobbelt så ofte når det er 60sek igjen.
+            if(count == 60 ){
+              drawrotten2();
+            }
+
+            //Det faller ingen frø når det er 60sek igjen.
+            if(count <= 60 ){
+              seed = {};
+            }
+        }
+
+        //Funksjon for telling av liv
+        function countlives() {
+            //Hva som skjer når spilleren har 0 liv
+            if(livesCount <= 0) {
+                livesCount = 0;
+                //Setter antall liv til 0
+                count = 0;
+                //Kjører funksjonen for tap/game-over.
+                lost();
+            }
+        }
+
+        //Funksjon som resetter og starter spillet
+        function startGame() {
+            //Startverdier:
+            //Nedtelling
+            count = 180;
+            //Poeng
+            pointsCount = 0;
+            //Antall liv
+            livesCount = 3;
+            //Game-over og start knapp og tekst er ikke synlig
+            gameStart = false;
+            gameOver = false;
+            //Egendefinerte bilder er synlig
+            basketLoaded = true;
+            basket = {speed: 256};
+            banana = {speed: 85};
+            apple = {speed: 55};
+            seed = {speed: 50};
+            rotten = {speed: 60};
+            rotten2 = {speed: 80};
+            //Tegner opp spillelementer
+            drawbasket();
+            drawbanana();
+            drawapple();
+            drawseed();
+            drawrotten();
+            //Intervall som kjører counter og countlives funksjonen hvert 1000 milisekund (1 sekund)
+            setInterval(counter, 1000);
+            setInterval(countlives, 1000);
+            
+        }
+
+        //Funksjon som kjører når nettsiden laster inn - før snartknapp blir trykket på.
+        function beforeStart(){
+            //Game-over tekst og knapp er ikke synlig
+            gameOver = false;
+            //Startknapp og tekst er synlig
+            gameStart = true;
+            //Starttid
+            count = 180;
+            //Ingen tellere starter før start knapp er trykket
+            clearInterval(counter);
+            clearInterval(countlives);
+            //Spill elementene er ikke synlig.
+            basketLoaded = false;
+            banana = {};
+            apple = {};
+            seed = {};
+            rotten = {};
+            rotten2 = {};
+        }
+        
+        //Når nettsiden lastes inn: 
+        //Kjører funksjonen beforeStart
+        beforeStart();
+        //Kjører gameRenderer funskjonen slik at bakgrunnsbilde
+        //og alt av tekst/knapper vises.
+        gameRenderer();
+        
+    </script>
+</body>
+</html>
